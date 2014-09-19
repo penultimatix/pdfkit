@@ -21,3 +21,5 @@ pkg
 ## PROJECT::SPECIFIC
 .bundle
 spec/custom_wkhtmltopdf_path.rb
+spec/test_save.pdf
+Gemfile.lock

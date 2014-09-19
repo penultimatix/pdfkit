@@ -6,6 +6,7 @@ class PDFKit
       @app        = app
       @options    = options
       @conditions = conditions
+      @render_pdf = false
     end
 
     def call(env)
@@ -22,14 +23,19 @@ class PDFKit
         body = PDFKit.new(translate_paths(body, env), @options).to_pdf
         response = [body]
 
+        if headers['PDFKit-save-pdf']
+          File.open(headers['PDFKit-save-pdf'], 'wb') { |file| file.write(body) } rescue nil
+          headers.delete('PDFKit-save-pdf')
+        end
+
         unless @caching
           # Do not cache PDFs
           headers.delete('ETag')
           headers.delete('Cache-Control')
         end
 
-        headers["Content-Length"]         = (body.respond_to?(:bytesize) ? body.bytesize : body.size).to_s
-        headers["Content-Type"]           = "application/pdf"
+        headers['Content-Length']         = (body.respond_to?(:bytesize) ? body.bytesize : body.size).to_s
+        headers['Content-Type']           = 'application/pdf'
       end
 
       [status, headers, response]
@@ -37,12 +43,22 @@ class PDFKit
 
     private
 
-    # Change relative paths to absolute
+    # Change relative paths to absolute, and relative protocols to absolute protocols
     def translate_paths(body, env)
-      # Host with protocol
-      root = PDFKit.configuration.root_url || "#{env['rack.url_scheme']}://#{env['HTTP_HOST']}/"
+      body = translate_relative_paths(body, env)
+      translate_relative_protocols(body, env)
+    end
 
-      body.gsub(/(href|src)=(['"])\/([^\"']*|[^"']*)['"]/, '\1=\2' + root + '\3\2')
+    def translate_relative_paths(body, env)
+      root = PDFKit.configuration.root_url || "#{env['rack.url_scheme']}://#{env['HTTP_HOST']}/"
+      # Try out this regexp using rubular http://rubular.com/r/vmuGSkheuu
+      body.gsub(/(href|src)=(['"])\/([^\/]([^\"']*|[^"']*))['"]/, "\\1=\\2#{root}\\3\\2")
+    end
+
+    def translate_relative_protocols(body, env)
+      protocol = "#{env['rack.url_scheme']}://"
+      # Try out this regexp using rubular http://rubular.com/r/0Ohk0wFYxV
+      body.gsub(/(href|src)=(['"])\/\/([^\"']*|[^"']*)['"]/, "\\1=\\2#{protocol}\\3\\2")
     end
 
     def rendering_pdf?
@@ -50,25 +66,16 @@ class PDFKit
     end
 
     def render_as_pdf?
-      request_path_is_pdf = @request.path.match(%r{\.pdf$})
+      request_path = @request.path
+      request_path_is_pdf = request_path.match(%r{\.pdf$})
 
       if request_path_is_pdf && @conditions[:only]
-        rules = [@conditions[:only]].flatten
-        rules.any? do |pattern|
-          if pattern.is_a?(Regexp)
-            @request.path =~ pattern
-          else
-            @request.path[0, pattern.length] == pattern
-          end
+        conditions_as_regexp(@conditions[:only]).any? do |pattern|
+          request_path =~ pattern
         end
       elsif request_path_is_pdf && @conditions[:except]
-        rules = [@conditions[:except]].flatten
-        rules.map do |pattern|
-          if pattern.is_a?(Regexp)
-            return false if @request.path =~ pattern
-          else
-            return false if @request.path[0, pattern.length] == pattern
-          end
+        conditions_as_regexp(@conditions[:except]).each do |pattern|
+          return false if request_path =~ pattern
         end
 
         return true
@@ -86,12 +93,17 @@ class PDFKit
       %w[PATH_INFO REQUEST_URI].each { |e| env[e] = path }
 
       env['HTTP_ACCEPT'] = concat(env['HTTP_ACCEPT'], Rack::Mime.mime_type('.html'))
-      env["Rack-Middleware-PDFKit"] = "true"
+      env['Rack-Middleware-PDFKit'] = 'true'
     end
 
     def concat(accepts, type)
       (accepts || '').split(',').unshift(type).compact.join(',')
     end
 
+    def conditions_as_regexp(conditions)
+      [conditions].flatten.map do |pattern|
+        pattern.is_a?(Regexp) ? pattern : Regexp.new('^' + pattern)
+      end
+    end
   end
 end

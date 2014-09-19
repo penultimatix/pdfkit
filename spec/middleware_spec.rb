@@ -2,10 +2,11 @@ require 'spec_helper'
 
 def app; Rack::Lint.new(@app); end
 
-def mock_app(options = {}, conditions = {})
+def mock_app(options = {}, conditions = {}, custom_headers = {})
   main_app = lambda { |env|
     @env = env
-    [200, headers.dup, @body || ['Hello world!']]
+    full_headers = headers.merge custom_headers
+    [200, full_headers, @body || ['Hello world!']]
   }
 
   builder = Rack::Builder.new
@@ -15,22 +16,30 @@ def mock_app(options = {}, conditions = {})
 end
 
 describe PDFKit::Middleware do
-  let(:headers) { {'Content-Type' => "text/html"} }
+  let(:headers) do
+    {'Content-Type' => "text/html"}
+  end
 
   describe "#call" do
     describe "caching" do
-      let(:headers) { {'Content-Type' => "text/html", 'ETag' => 'foo', 'Cache-Control' => 'max-age=2592000, public'} }
+      let(:headers) do
+        {
+          'Content-Type' => "text/html",
+          'ETag' => 'foo',
+          'Cache-Control' => 'max-age=2592000, public'
+        }
+      end
 
       context "by default" do
         before { mock_app }
 
         it "deletes ETag" do
           get 'http://www.example.org/public/test.pdf'
-          last_response.headers["ETag"].should be_nil
+          expect(last_response.headers["ETag"]).to be_nil
         end
         it "deletes Cache-Control" do
           get 'http://www.example.org/public/test.pdf'
-          last_response.headers["Cache-Control"].should be_nil
+          expect(last_response.headers["Cache-Control"]).to be_nil
         end
       end
 
@@ -39,11 +48,12 @@ describe PDFKit::Middleware do
 
         it "preserves ETag" do
           get 'http://www.example.org/public/test.pdf'
-          last_response.headers["ETag"].should_not be_nil
+          expect(last_response.headers["ETag"]).not_to be_nil
         end
+
         it "preserves Cache-Control" do
           get 'http://www.example.org/public/test.pdf'
-          last_response.headers["Cache-Control"].should_not be_nil
+          expect(last_response.headers["Cache-Control"]).not_to be_nil
         end
       end
     end
@@ -58,16 +68,16 @@ describe PDFKit::Middleware do
             context "matching" do
               specify do
                 get 'http://www.example.org/public/test.pdf'
-                last_response.headers["Content-Type"].should == "application/pdf"
-                last_response.body.bytesize.should == PDFKit.new("Hello world!").to_pdf.bytesize
+                expect(last_response.headers["Content-Type"]).to eq("application/pdf")
+                expect(last_response.body.bytesize).to eq(PDFKit.new("Hello world!").to_pdf.bytesize)
               end
             end
 
             context "not matching" do
               specify do
                 get 'http://www.example.org/secret/test.pdf'
-                last_response.headers["Content-Type"].should == "text/html"
-                last_response.body.should == "Hello world!"
+                expect(last_response.headers["Content-Type"]).to eq("text/html")
+                expect(last_response.body).to eq("Hello world!")
               end
             end
           end # one regex
@@ -78,16 +88,16 @@ describe PDFKit::Middleware do
             context "matching" do
               specify do
                 get 'http://www.example.org/public/test.pdf'
-                last_response.headers["Content-Type"].should == "application/pdf"
-                last_response.body.bytesize.should == PDFKit.new("Hello world!").to_pdf.bytesize
+                expect(last_response.headers["Content-Type"]).to eq("application/pdf")
+                expect(last_response.body.bytesize).to eq(PDFKit.new("Hello world!").to_pdf.bytesize)
               end
             end
 
             context "not matching" do
               specify do
                 get 'http://www.example.org/secret/test.pdf'
-                last_response.headers["Content-Type"].should == "text/html"
-                last_response.body.should == "Hello world!"
+                expect(last_response.headers["Content-Type"]).to eq("text/html")
+                expect(last_response.body).to eq("Hello world!")
               end
             end
           end # multiple regex
@@ -100,16 +110,16 @@ describe PDFKit::Middleware do
             context "matching" do
               specify do
                 get 'http://www.example.org/public/test.pdf'
-                last_response.headers["Content-Type"].should == "application/pdf"
-                last_response.body.bytesize.should == PDFKit.new("Hello world!").to_pdf.bytesize
+                expect(last_response.headers["Content-Type"]).to eq("application/pdf")
+                expect(last_response.body.bytesize).to eq(PDFKit.new("Hello world!").to_pdf.bytesize)
               end
             end
 
             context "not matching" do
               specify do
                 get 'http://www.example.org/secret/test.pdf'
-                last_response.headers["Content-Type"].should == "text/html"
-                last_response.body.should == "Hello world!"
+                expect(last_response.headers["Content-Type"]).to eq("text/html")
+                expect(last_response.body).to eq("Hello world!")
               end
             end
           end # one string
@@ -120,16 +130,16 @@ describe PDFKit::Middleware do
             context "matching" do
               specify do
                 get 'http://www.example.org/public/test.pdf'
-                last_response.headers["Content-Type"].should == "application/pdf"
-                last_response.body.bytesize.should == PDFKit.new("Hello world!").to_pdf.bytesize
+                expect(last_response.headers["Content-Type"]).to eq("application/pdf")
+                expect(last_response.body.bytesize).to eq(PDFKit.new("Hello world!").to_pdf.bytesize)
               end
             end
 
             context "not matching" do
               specify do
                 get 'http://www.example.org/secret/test.pdf'
-                last_response.headers["Content-Type"].should == "text/html"
-                last_response.body.should == "Hello world!"
+                expect(last_response.headers["Content-Type"]).to eq("text/html")
+                expect(last_response.body).to eq("Hello world!")
               end
             end
           end # multiple string
@@ -146,16 +156,16 @@ describe PDFKit::Middleware do
             context "matching" do
               specify do
                 get 'http://www.example.org/public/test.pdf'
-                last_response.headers["Content-Type"].should == "application/pdf"
-                last_response.body.bytesize.should == PDFKit.new("Hello world!").to_pdf.bytesize
+                expect(last_response.headers["Content-Type"]).to eq("application/pdf")
+                expect(last_response.body.bytesize).to eq(PDFKit.new("Hello world!").to_pdf.bytesize)
               end
             end
 
             context "not matching" do
               specify do
                 get 'http://www.example.org/secret/test.pdf'
-                last_response.headers["Content-Type"].should == "text/html"
-                last_response.body.should == "Hello world!"
+                expect(last_response.headers["Content-Type"]).to eq("text/html")
+                expect(last_response.body).to eq("Hello world!")
               end
             end
           end # one regex
@@ -166,16 +176,16 @@ describe PDFKit::Middleware do
             context "matching" do
               specify do
                 get 'http://www.example.org/public/test.pdf'
-                last_response.headers["Content-Type"].should == "application/pdf"
-                last_response.body.bytesize.should == PDFKit.new("Hello world!").to_pdf.bytesize
+                expect(last_response.headers["Content-Type"]).to eq("application/pdf")
+                expect(last_response.body.bytesize).to eq(PDFKit.new("Hello world!").to_pdf.bytesize)
               end
             end
 
             context "not matching" do
               specify do
                 get 'http://www.example.org/secret/test.pdf'
-                last_response.headers["Content-Type"].should == "text/html"
-                last_response.body.should == "Hello world!"
+                expect(last_response.headers["Content-Type"]).to eq("text/html")
+                expect(last_response.body).to eq("Hello world!")
               end
             end
           end # multiple regex
@@ -188,16 +198,16 @@ describe PDFKit::Middleware do
             context "matching" do
               specify do
                 get 'http://www.example.org/public/test.pdf'
-                last_response.headers["Content-Type"].should == "application/pdf"
-                last_response.body.bytesize.should == PDFKit.new("Hello world!").to_pdf.bytesize
+                expect(last_response.headers["Content-Type"]).to eq("application/pdf")
+                expect(last_response.body.bytesize).to eq(PDFKit.new("Hello world!").to_pdf.bytesize)
               end
             end
 
             context "not matching" do
               specify do
                 get 'http://www.example.org/secret/test.pdf'
-                last_response.headers["Content-Type"].should == "text/html"
-                last_response.body.should == "Hello world!"
+                expect(last_response.headers["Content-Type"]).to eq("text/html")
+                expect(last_response.body).to eq("Hello world!")
               end
             end
           end # one string
@@ -208,21 +218,54 @@ describe PDFKit::Middleware do
             context "matching" do
               specify do
                 get 'http://www.example.org/public/test.pdf'
-                last_response.headers["Content-Type"].should == "application/pdf"
-                last_response.body.bytesize.should == PDFKit.new("Hello world!").to_pdf.bytesize
+                expect(last_response.headers["Content-Type"]).to eq("application/pdf")
+                expect(last_response.body.bytesize).to eq(PDFKit.new("Hello world!").to_pdf.bytesize)
               end
             end
 
             context "not matching" do
               specify do
                 get 'http://www.example.org/secret/test.pdf'
-                last_response.headers["Content-Type"].should == "text/html"
-                last_response.body.should == "Hello world!"
+                expect(last_response.headers["Content-Type"]).to eq("text/html")
+                expect(last_response.body).to eq("Hello world!")
               end
             end
           end # multiple string
         end # string
 
+      end
+
+      describe "saving generated pdf to disk" do
+	before do
+          #make sure tests don't find an old test_save.pdf
+          File.delete('spec/test_save.pdf') if File.exists?('spec/test_save.pdf')
+          expect(File.exists?('spec/test_save.pdf')).to eq(false)
+	end
+
+        context "when header PDFKit-save-pdf is present" do
+          it "should saved the .pdf to disk" do
+	    headers = { 'PDFKit-save-pdf' => 'spec/test_save.pdf' }
+            mock_app({}, {only: '/public'}, headers)
+	    get 'http://www.example.org/public/test_save.pdf'
+            expect(File.exists?('spec/test_save.pdf')).to eq(true)
+	  end
+
+          it "should not raise when target directory does not exist" do
+	    headers = { 'PDFKit-save-pdf' => '/this/dir/does/not/exist/spec/test_save.pdf' }
+            mock_app({}, {only: '/public'}, headers)
+            expect {
+              get 'http://www.example.com/public/test_save.pdf'
+            }.not_to raise_error
+          end
+        end
+
+        context "when header PDFKit-save-pdf is not present" do
+          it "should not saved the .pdf to disk" do
+            mock_app({}, {only: '/public'}, {} )
+	    get 'http://www.example.org/public/test_save.pdf'
+            expect(File.exists?('spec/test_save.pdf')).to eq(false)
+          end
+        end
       end
     end
 
@@ -233,15 +276,15 @@ describe PDFKit::Middleware do
 
         specify do
           get 'http://www.example.org/public/file.pdf'
-          @env["PATH_INFO"].should == "/public/file"
-          @env["REQUEST_URI"].should == "/public/file"
-          @env["SCRIPT_NAME"].should be_empty
+          expect(@env["PATH_INFO"]).to eq("/public/file")
+          expect(@env["REQUEST_URI"]).to eq("/public/file")
+          expect(@env["SCRIPT_NAME"]).to be_empty
         end
         specify do
           get 'http://www.example.org/public/file.txt'
-          @env["PATH_INFO"].should == "/public/file.txt"
-          @env["REQUEST_URI"].should be_nil
-          @env["SCRIPT_NAME"].should be_empty
+          expect(@env["PATH_INFO"]).to eq("/public/file.txt")
+          expect(@env["REQUEST_URI"]).to be_nil
+          expect(@env["SCRIPT_NAME"]).to be_empty
         end
       end
 
@@ -261,15 +304,15 @@ describe PDFKit::Middleware do
         end
         specify do
           get 'http://example.org/sub/public/file.pdf'
-          @env["PATH_INFO"].should == "/sub/public/file"
-          @env["REQUEST_URI"].should == "/sub/public/file"
-          @env["SCRIPT_NAME"].should == "/example.org"
+          expect(@env["PATH_INFO"]).to eq("/sub/public/file")
+          expect(@env["REQUEST_URI"]).to eq("/sub/public/file")
+          expect(@env["SCRIPT_NAME"]).to eq("/example.org")
         end
         specify do
           get 'http://example.org/sub/public/file.txt'
-          @env["PATH_INFO"].should == "/sub/public/file.txt"
-          @env["REQUEST_URI"].should be_nil
-          @env["SCRIPT_NAME"].should == "/example.org"
+          expect(@env["PATH_INFO"]).to eq("/sub/public/file.txt")
+          expect(@env["REQUEST_URI"]).to be_nil
+          expect(@env["SCRIPT_NAME"]).to eq("/example.org")
         end
       end
 
@@ -285,19 +328,25 @@ describe PDFKit::Middleware do
     it "should correctly parse relative url with single quotes" do
       @body = %{<html><head><link href='/stylesheets/application.css' media='screen' rel='stylesheet' type='text/css' /></head><body><img alt='test' src="/test.png" /></body></html>}
       body = @pdf.send :translate_paths, @body, @env
-      body.should == "<html><head><link href='http://example.com/stylesheets/application.css' media='screen' rel='stylesheet' type='text/css' /></head><body><img alt='test' src=\"http://example.com/test.png\" /></body></html>"
+      expect(body).to eq("<html><head><link href='http://example.com/stylesheets/application.css' media='screen' rel='stylesheet' type='text/css' /></head><body><img alt='test' src=\"http://example.com/test.png\" /></body></html>")
     end
 
     it "should correctly parse relative url with double quotes" do
       @body = %{<link href="/stylesheets/application.css" media="screen" rel="stylesheet" type="text/css" />}
       body = @pdf.send :translate_paths, @body, @env
-      body.should == "<link href=\"http://example.com/stylesheets/application.css\" media=\"screen\" rel=\"stylesheet\" type=\"text/css\" />"
+      expect(body).to eq("<link href=\"http://example.com/stylesheets/application.css\" media=\"screen\" rel=\"stylesheet\" type=\"text/css\" />")
+    end
+
+    it "should correctly parse relative url with double quotes" do
+      @body = %{<link href='//fonts.googleapis.com/css?family=Open+Sans:400,600' rel='stylesheet' type='text/css'>}
+      body = @pdf.send :translate_paths, @body, @env
+      expect(body).to eq("<link href='http://fonts.googleapis.com/css?family=Open+Sans:400,600' rel='stylesheet' type='text/css'>")
     end
 
     it "should return the body even if there are no valid substitutions found" do
       @body = "NO MATCH"
       body = @pdf.send :translate_paths, @body, @env
-      body.should == "NO MATCH"
+      expect(body).to eq("NO MATCH")
     end
   end
 
@@ -313,7 +362,7 @@ describe PDFKit::Middleware do
     it "should add the root_url" do
       @body = %{<html><head><link href='/stylesheets/application.css' media='screen' rel='stylesheet' type='text/css' /></head><body><img alt='test' src="/test.png" /></body></html>}
       body = @pdf.send :translate_paths, @body, @env
-      body.should == "<html><head><link href='http://example.net/stylesheets/application.css' media='screen' rel='stylesheet' type='text/css' /></head><body><img alt='test' src=\"http://example.net/test.png\" /></body></html>"
+      expect(body).to eq("<html><head><link href='http://example.net/stylesheets/application.css' media='screen' rel='stylesheet' type='text/css' /></head><body><img alt='test' src=\"http://example.net/test.png\" /></body></html>")
     end
 
     after do
@@ -326,19 +375,18 @@ describe PDFKit::Middleware do
   it "should not get stuck rendering each request as pdf" do
     mock_app
     # false by default. No requests.
-    @app.send(:rendering_pdf?).should be_false
+    expect(@app.send(:rendering_pdf?)).to eq(false)
 
     # Remain false on a normal request
     get 'http://www.example.org/public/file'
-    @app.send(:rendering_pdf?).should be_false
+    expect(@app.send(:rendering_pdf?)).to eq(false)
 
     # Return true on a pdf request.
     get 'http://www.example.org/public/file.pdf'
-    @app.send(:rendering_pdf?).should be_true
+    expect(@app.send(:rendering_pdf?)).to eq(true)
 
     # Restore to false on any non-pdf request.
     get 'http://www.example.org/public/file'
-    @app.send(:rendering_pdf?).should be_false
+    expect(@app.send(:rendering_pdf?)).to eq(false)
   end
-
 end

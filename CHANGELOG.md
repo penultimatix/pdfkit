@@ -1,3 +1,30 @@
+2014-08-xx
+=================
+  * Bump to 0.7.0
+  * Fix issue #230 where PDFKit called `bundle exec` without a Gemfile
+  * Fix issue #183 where PDFKit broke the path to wkhtmltopdf.exe by escaping
+    spaces in paths
+  * Improve performance by not storing the PDF in memory if a path is
+    provided. Thanks @mikefarah
+
+2014-04-20
+==================
+  * Bump to 0.6.2
+  * There was a bug where parsing meta tags would include the option name
+    causing an invalid command to be generated. This was fixed in #229 after
+    being reported by Frank Oxener.
+
+2014-02-18
+==================
+  * Bump to 0.6.0
+  * Added ability to run wkhtmltopdf without `--quiet`
+  * Now handles repeatable options as both config parameters and meta tag
+    options
+  * Fix status code 2 being treated as failure
+  * Escape `\X` in styesheets
+  * Allow controllers to set PDFKit-save-pdf
+  * Fix Middleware not respecting subdomains in path
+
 2013-06-12
 ==================
   * Bump to 0.5.4

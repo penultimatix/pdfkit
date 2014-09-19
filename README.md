@@ -14,7 +14,7 @@ gem install pdfkit
 
     <https://github.com/pdfkit/pdfkit/wiki/Installing-WKHTMLTOPDF>
 
-2.  Try using the wkhtmltopdf-binary gem (mac + linux i386)
+2.  Try using the `wkhtmltopdf-binary` gem (mac + linux i386)
 ```
 gem install wkhtmltopdf-binary
 ```
@@ -40,15 +40,18 @@ kit = PDFKit.new(File.new('/path/to/html'))
 
 # Add any kind of option through meta tags
 PDFKit.new('<html><head><meta name="pdfkit-page_size" content="Letter"')
+PDFKit.new('<html><head><meta name="pdfkit-cookie cookie_name1" content="cookie_value1"')
+PDFKit.new('<html><head><meta name="pdfkit-cookie cookie_name2" content="cookie_value2"')
 ```
 ### Using cookies in scraping
 If you want to pass a cookie to cookie to pdfkit to scrape a website, you can 
 pass it in a hash:
 ```ruby
-kit = PDFKit.new(url, cookie: {cookie_name, cookie_value})
+kit = PDFKit.new(url, cookie: {cookie_name: :cookie_value})
+kit = PDFKit.new(url, [:cookie, :cookie_name1] => :cookie_val1, [:cookie, :cookie_name2] => :cookie_val2)
 ```
 ## Configuration
-If you're on Windows or you installed wkhtmltopdf by hand to a location other than /usr/local/bin you will need to tell PDFKit where the binary is. You can configure PDFKit like so:
+If you're on Windows or you installed wkhtmltopdf by hand to a location other than `/usr/local/bin` you will need to tell PDFKit where the binary is. You can configure PDFKit like so:
 ```ruby
 # config/initializers/pdfkit.rb
 PDFKit.configure do |config|
@@ -58,7 +61,8 @@ PDFKit.configure do |config|
     :print_media_type => true
   }
   # Use only if your external hostname is unavailable on the server.
-  config.root_url = "http://localhost" 
+  config.root_url = "http://localhost"
+  config.verbose = false
 end
 ```
 ## Middleware
@@ -98,6 +102,17 @@ config.middleware.use PDFKit::Middleware, {}, :except => [%r[^/prawn], %r[^/secr
 # conditions can be strings (either one or an array)
 config.middleware.use PDFKit::Middleware, {}, :except => ['/secret']
 ```
+**Saving the generated .pdf to disk**
+
+Setting the `PDFKit-save-pdf` header will cause PDFKit to write the generated .pdf to the file indicated by the value of the header.
+
+For example:
+```ruby
+headers['PDFKit-save-pdf'] = 'path/to/saved.pdf'
+```
+
+Will cause the .pdf to be saved to `path/to/saved.pdf` in addition to being sent back to the client.  If the path is not writable/non-existant the write will fail silently.  The `PDFKit-save-pdf` header is never sent back to the client.
+
 ## Troubleshooting
 
 *  **Single thread issue:** In development environments it is common to run a
@@ -136,7 +151,7 @@ config.middleware.use PDFKit::Middleware, {}, :except => ['/secret']
 ## Note on Patches/Pull Requests
 
 * Fork the project.
-* Setup your development environment with: gem install bundler; bundle install
+* Setup your development environment with: `gem install bundler`; `bundle install`
 * Make your feature addition or bug fix.
 * Add tests for it. This is important so I don't break it in a
   future version unintentionally.
